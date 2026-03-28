@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="My Budget">
+<meta name="theme-color" content="#1a1410">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<title>My Budget</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream: #faf7f2;
+    --warm-white: #fff9f0;
+    --ink: #1a1410;
+    --ink-light: #5c4f42;
+    --ink-faint: #a89880;
+    --sage: #6b8f71;
+    --sage-light: #e8f0e9;
+    --rose: #c0614a;
+    --rose-light: #faeae6;
+    --gold: #c8922a;
+    --gold-light: #fdf3e0;
+    --border: #e8e0d4;
+    --shadow: rgba(26,20,16,0.08);
+    --safe-top: env(safe-area-inset-top);
+    --safe-bot: env(safe-area-inset-bottom);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    height: 100%;
+    overscroll-behavior: none;
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--cream);
+    color: var(--ink);
+    min-height: 100vh;
+    padding-bottom: calc(80px + var(--safe-bot));
+  }
+
+  h1, h2, h3 { font-family: 'Playfair Display', serif; }
+
+  /* ── TOP BAR ── */
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(250,247,242,0.92);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    padding: calc(var(--safe-top) + 12px) 20px 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .topbar h1 { font-size: 1.5rem; }
+  .month-nav {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .month-nav button {
+    background: none; border: none; cursor: pointer;
+    font-size: 1.2rem; color: var(--ink-light);
+    padding: 4px 10px; border-radius: 8px;
+    transition: background 0.15s;
+  }
+  .month-nav button:active { background: var(--border); }
+  #month-label {
+    font-weight: 600; font-size: 0.9rem;
+    color: var(--ink); min-width: 110px; text-align: center;
+  }
+
+  /* ── BOTTOM NAV ── */
+  .bottom-nav {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: rgba(255,249,240,0.95);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid var(--border);
+    display: flex;
+    padding-bottom: var(--safe-bot);
+    z-index: 100;
+  }
+  .nav-btn {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; gap: 3px;
+    padding: 10px 0 8px;
+    background: none; border: none; cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.68rem; font-weight: 500;
+    color: var(--ink-faint);
+    transition: color 0.2s;
+  }
+  .nav-btn .icon { font-size: 1.4rem; line-height: 1; }
+  .nav-btn.active { color: var(--ink); }
+  .nav-btn.active .icon { transform: scale(1.1); }
+
+  /* ── PAGES ── */
+  .page { display: none; padding: 16px 16px 0; animation: fadeUp 0.3s ease; }
+  .page.active { display: block; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── SUMMARY CARDS ── */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .summary-card {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 10px;
+    box-shadow: 0 2px 8px var(--shadow);
+    text-align: center;
+  }
+  .summary-card .label {
+    font-size: 0.68rem; text-transform: uppercase;
+    letter-spacing: 0.8px; color: var(--ink-faint);
+    font-weight: 600; margin-bottom: 4px;
+  }
+  .summary-card .amount {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.3rem; font-weight: 700;
+  }
+  .card-income .amount { color: var(--sage); }
+  .card-expenses .amount { color: var(--rose); }
+  .card-balance.negative .amount { color: var(--rose); }
+  .card-balance.positive .amount { color: var(--sage); }
+
+  /* ── PANELS ── */
+  .panel {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 18px;
+    box-shadow: 0 2px 10px var(--shadow);
+    margin-bottom: 14px;
+  }
+  .panel h2 { font-size: 1.1rem; margin-bottom: 14px; }
+
+  /* ── FORM ── */
+  .type-toggle {
+    display: flex; gap: 0;
+    background: var(--cream);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden; margin-bottom: 12px;
+  }
+  .type-btn {
+    flex: 1; padding: 11px;
+    border: none; background: transparent;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem; font-weight: 500;
+    cursor: pointer; transition: all 0.2s;
+    color: var(--ink-faint);
+  }
+  .type-btn.active-income { background: var(--sage); color: white; border-radius: 8px; }
+  .type-btn.active-expense { background: var(--rose); color: white; border-radius: 8px; }
+
+  .form-field { margin-bottom: 10px; }
+  .form-field label {
+    display: block;
+    font-size: 0.72rem; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.8px;
+    color: var(--ink-faint); margin-bottom: 5px;
+  }
+  .form-field input, .form-field select {
+    width: 100%;
+    background: var(--cream);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 1rem; color: var(--ink);
+    outline: none; transition: border-color 0.2s;
+    -webkit-appearance: none; appearance: none;
+  }
+  .form-field input:focus, .form-field select:focus {
+    border-color: var(--gold); background: white;
+  }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  .btn-add {
+    width: 100%; padding: 14px;
+    background: var(--ink); color: white;
+    border: none; border-radius: 12px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 1rem; font-weight: 600;
+    cursor: pointer; transition: opacity 0.15s;
+    margin-top: 4px;
+  }
+  .btn-add:active { opacity: 0.8; }
+
+  /* ── TRANSACTIONS ── */
+  .filter-row {
+    display: flex; gap: 7px;
+    overflow-x: auto; padding-bottom: 10px;
+    margin-bottom: 12px;
+    scrollbar-width: none;
+  }
+  .filter-row::-webkit-scrollbar { display: none; }
+  .chip {
+    padding: 6px 13px; border-radius: 99px;
+    border: 1.5px solid var(--border);
+    background: var(--cream);
+    font-size: 0.78rem; font-weight: 500;
+    cursor: pointer; white-space: nowrap;
+    color: var(--ink-light); transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .chip.active { background: var(--ink); color: white; border-color: var(--ink); }
+
+  .txn-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px; border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--warm-white);
+    margin-bottom: 8px;
+    transition: background 0.15s;
+  }
+  .txn-item:active { background: var(--cream); }
+  .txn-icon {
+    width: 40px; height: 40px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.2rem; flex-shrink: 0;
+  }
+  .txn-icon.income { background: var(--sage-light); }
+  .txn-icon.expense { background: var(--rose-light); }
+  .txn-info { flex: 1; min-width: 0; }
+  .txn-desc { font-weight: 500; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .txn-meta { font-size: 0.75rem; color: var(--ink-faint); margin-top: 2px; }
+  .txn-amount { font-family: 'Playfair Display', serif; font-size: 1.05rem; font-weight: 700; flex-shrink: 0; }
+  .txn-amount.income { color: var(--sage); }
+  .txn-amount.expense { color: var(--rose); }
+  .txn-delete {
+    background: none; border: none; cursor: pointer;
+    color: var(--ink-faint); font-size: 0.95rem;
+    padding: 6px; border-radius: 8px;
+  }
+  .txn-delete:active { background: var(--rose-light); color: var(--rose); }
+
+  /* ── GOALS ── */
+  .goal-item { margin-bottom: 16px; }
+  .goal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .goal-name { font-weight: 500; font-size: 0.95rem; }
+  .goal-amounts { font-size: 0.8rem; color: var(--ink-faint); }
+  .goal-bar-bg { height: 10px; background: var(--cream); border-radius: 99px; overflow: hidden; border: 1px solid var(--border); }
+  .goal-bar-fill { height: 100%; border-radius: 99px; transition: width 0.5s cubic-bezier(.4,0,.2,1); }
+  .goal-bar-fill.safe { background: var(--sage); }
+  .goal-bar-fill.warning { background: var(--gold); }
+  .goal-bar-fill.over { background: var(--rose); }
+  .goal-form-row { display: flex; gap: 8px; margin-top: 16px; }
+  .goal-form-row input, .goal-form-row select {
+    flex: 1;
+    background: var(--cream); border: 1.5px solid var(--border);
+    border-radius: 10px; padding: 11px 12px;
+    font-family: 'DM Sans', sans-serif; font-size: 0.9rem;
+    color: var(--ink); outline: none;
+    -webkit-appearance: none; appearance: none;
+  }
+  .goal-form-row input:focus, .goal-form-row select:focus { border-color: var(--gold); }
+  .btn-sm {
+    padding: 11px 14px; background: var(--ink); color: white;
+    border: none; border-radius: 10px;
+    font-family: 'DM Sans', sans-serif; font-size: 0.9rem;
+    font-weight: 600; cursor: pointer; white-space: nowrap;
+  }
+  .btn-sm:active { opacity: 0.8; }
+
+  /* ── INSIGHTS ── */
+  .insight-row {
+    display: flex; justify-content: space-between;
+    align-items: center; padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .insight-row:last-child { border-bottom: none; }
+  .insight-cat { font-weight: 500; font-size: 0.9rem; }
+  .insight-amt { font-family: 'Playfair Display', serif; font-size: 1rem; color: var(--rose); }
+
+  .empty-state {
+    text-align: center; padding: 28px 0;
+    color: var(--ink-faint); font-size: 0.9rem;
+  }
+  .empty-state .icon { font-size: 2rem; margin-bottom: 8px; }
+
+  /* ── SAVINGS ── */
+  .savings-card {
+    background: linear-gradient(135deg, #1a1410 0%, #2d2318 100%);
+    border-radius: 18px; padding: 20px;
+    color: white; margin-bottom: 14px;
+    box-shadow: 0 4px 16px rgba(26,20,16,0.2);
+  }
+  .savings-card .sc-label {
+    font-size: 0.72rem; text-transform: uppercase;
+    letter-spacing: 1px; color: rgba(255,255,255,0.55);
+    font-weight: 600; margin-bottom: 4px;
+  }
+  .savings-card .sc-total {
+    font-family: 'Playfair Display', serif;
+    font-size: 2.2rem; font-weight: 700; color: #c8922a;
+    margin-bottom: 4px;
+  }
+  .savings-card .sc-sub {
+    font-size: 0.8rem; color: rgba(255,255,255,0.5);
+  }
+
+  .savings-account {
+    display: flex; align-items: center; gap: 12px;
+    padding: 13px; border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--warm-white); margin-bottom: 8px;
+  }
+  .savings-account-icon {
+    width: 40px; height: 40px; border-radius: 10px;
+    background: var(--gold-light);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.2rem; flex-shrink: 0;
+  }
+  .savings-account-info { flex: 1; min-width: 0; }
+  .savings-account-name { font-weight: 500; font-size: 0.95rem; }
+  .savings-account-goal { font-size: 0.75rem; color: var(--ink-faint); margin-top: 2px; }
+  .savings-account-bal {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.05rem; font-weight: 700; color: var(--gold);
+    flex-shrink: 0;
+  }
+  .savings-account-actions {
+    display: flex; flex-direction: column; gap: 4px; flex-shrink: 0;
+  }
+  .btn-deposit, .btn-withdraw {
+    font-size: 0.72rem; font-weight: 600;
+    padding: 4px 10px; border-radius: 6px;
+    border: none; cursor: pointer; font-family: 'DM Sans', sans-serif;
+  }
+  .btn-deposit { background: var(--sage-light); color: var(--sage); }
+  .btn-withdraw { background: var(--rose-light); color: var(--rose); }
+  .btn-deposit:active { opacity: 0.7; }
+  .btn-withdraw:active { opacity: 0.7; }
+
+  .savings-progress-wrap { margin-top: 6px; }
+  .savings-progress-bar {
+    height: 5px; background: var(--cream); border-radius: 99px;
+    overflow: hidden; margin-top: 4px; border: 1px solid var(--border);
+  }
+  .savings-progress-fill {
+    height: 100%; background: var(--gold); border-radius: 99px;
+    transition: width 0.5s cubic-bezier(.4,0,.2,1);
+  }
+  .savings-progress-fill.reached { background: var(--sage); }
+
+  .savings-form-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    margin-top: 14px;
+  }
+  .savings-form-grid input {
+    background: var(--cream); border: 1.5px solid var(--border);
+    border-radius: 10px; padding: 11px 12px;
+    font-family: 'DM Sans', sans-serif; font-size: 0.9rem;
+    color: var(--ink); outline: none;
+    -webkit-appearance: none; appearance: none; width: 100%;
+  }
+  .savings-form-grid input:focus { border-color: var(--gold); }
+  .btn-savings-add {
+    grid-column: span 2;
+    padding: 12px; background: var(--ink); color: white;
+    border: none; border-radius: 10px;
+    font-family: 'DM Sans', sans-serif; font-size: 0.95rem;
+    font-weight: 600; cursor: pointer;
+  }
+  .btn-savings-add:active { opacity: 0.8; }
+
+  /* modal overlay */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(26,20,16,0.5); z-index: 200;
+    align-items: flex-end; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal-sheet {
+    background: white; border-radius: 24px 24px 0 0;
+    padding: 24px 20px calc(24px + var(--safe-bot));
+    width: 100%; max-width: 500px;
+    animation: slideUp 0.25s ease;
+  }
+  @keyframes slideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+  .modal-sheet h3 { font-size: 1.1rem; margin-bottom: 16px; }
+  .modal-sheet input {
+    width: 100%; background: var(--cream);
+    border: 1.5px solid var(--border); border-radius: 10px;
+    padding: 13px 14px; font-family: 'DM Sans', sans-serif;
+    font-size: 1.1rem; color: var(--ink); outline: none;
+    margin-bottom: 12px; -webkit-appearance: none;
+  }
+  .modal-sheet input:focus { border-color: var(--gold); }
+  .modal-btns { display: flex; gap: 10px; }
+  .modal-btns button {
+    flex: 1; padding: 14px; border: none; border-radius: 12px;
+    font-family: 'DM Sans', sans-serif; font-weight: 600;
+    font-size: 1rem; cursor: pointer;
+  }
+  .modal-confirm { background: var(--ink); color: white; }
+  .modal-cancel { background: var(--cream); color: var(--ink); }
+
+  /* ── INSTALL BANNER ── */
+  #install-banner {
+    display: none;
+    background: var(--ink); color: white;
+    padding: 14px 18px; margin-bottom: 14px;
+    border-radius: 14px;
+    align-items: center; gap: 12px;
+  }
+  #install-banner p { flex: 1; font-size: 0.85rem; line-height: 1.4; }
+  #install-banner button {
+    background: var(--gold); color: white;
+    border: none; border-radius: 8px;
+    padding: 8px 14px; font-weight: 600;
+    font-size: 0.85rem; cursor: pointer;
+    white-space: nowrap;
+  }
+  #dismiss-banner {
+    background: none !important; color: var(--ink-faint) !important;
+    padding: 4px !important; font-size: 1rem !important;
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>My Budget</h1>
+  <div class="month-nav">
+    <button onclick="changeMonth(-1)">‹</button>
+    <span id="month-label"></span>
+    <button onclick="changeMonth(1)">›</button>
+  </div>
+</div>
+
+<!-- HOME PAGE -->
+<div class="page active" id="page-home">
+  <div id="install-banner">
+    <p>📲 Add to your Home Screen for quick access!</p>
+    <button onclick="showInstallHelp()">How?</button>
+    <button id="dismiss-banner" onclick="dismissBanner()">✕</button>
+  </div>
+  <div class="summary-grid">
+    <div class="summary-card card-income">
+      <div class="label">Income</div>
+      <div class="amount" id="total-income">$0</div>
+    </div>
+    <div class="summary-card card-expenses">
+      <div class="label">Expenses</div>
+      <div class="amount" id="total-expenses">$0</div>
+    </div>
+    <div class="summary-card card-balance" id="balance-card">
+      <div class="label">Balance</div>
+      <div class="amount" id="total-balance">$0</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Spending by Category</h2>
+    <div id="insights-list"><div class="empty-state"><div class="icon">📊</div>No expenses yet</div></div>
+  </div>
+
+  <div class="panel">
+    <h2>Budget Limits</h2>
+    <div id="goals-home"></div>
+    <p style="font-size:0.82rem;color:var(--ink-faint);margin-top:8px;text-align:center">
+      Set limits on the Goals tab →
+    </p>
+  </div>
+</div>
+
+<!-- ADD PAGE -->
+<div class="page" id="page-add">
+  <div class="panel">
+    <h2>Add Entry</h2>
+    <div class="type-toggle">
+      <button class="type-btn active-income" id="btn-income" onclick="setType('income')">＋ Income</button>
+      <button class="type-btn" id="btn-expense" onclick="setType('expense')">− Expense</button>
+    </div>
+    <div class="form-field">
+      <label>Description</label>
+      <input type="text" id="txn-desc" placeholder="e.g. Paycheck, Groceries…" />
+    </div>
+    <div class="form-row">
+      <div class="form-field">
+        <label>Amount ($)</label>
+        <input type="number" id="txn-amount" placeholder="0.00" min="0" step="0.01" inputmode="decimal" />
+      </div>
+      <div class="form-field">
+        <label>Date</label>
+        <input type="date" id="txn-date" />
+      </div>
+    </div>
+    <div class="form-field">
+      <label>Category</label>
+      <select id="txn-category">
+        <option value="Housing">🏠 Housing</option>
+        <option value="Food">🍔 Food</option>
+        <option value="Transport">🚗 Transport</option>
+        <option value="Health">💊 Health</option>
+        <option value="Entertainment">🎬 Entertainment</option>
+        <option value="Shopping">🛍️ Shopping</option>
+        <option value="Utilities">💡 Utilities</option>
+        <option value="Income">💰 Income</option>
+        <option value="Other">📦 Other</option>
+      </select>
+    </div>
+    <button class="btn-add" onclick="addTransaction()">Add to Budget</button>
+  </div>
+</div>
+
+<!-- TRANSACTIONS PAGE -->
+<div class="page" id="page-txns">
+  <div class="filter-row" id="filter-chips">
+    <div class="chip active" data-cat="All" onclick="filterBy('All')">All</div>
+    <div class="chip" data-cat="Income" onclick="filterBy('Income')">💰 Income</div>
+    <div class="chip" data-cat="Housing" onclick="filterBy('Housing')">🏠 Housing</div>
+    <div class="chip" data-cat="Food" onclick="filterBy('Food')">🍔 Food</div>
+    <div class="chip" data-cat="Transport" onclick="filterBy('Transport')">🚗 Transport</div>
+    <div class="chip" data-cat="Health" onclick="filterBy('Health')">💊 Health</div>
+    <div class="chip" data-cat="Entertainment" onclick="filterBy('Entertainment')">🎬 Entertainment</div>
+    <div class="chip" data-cat="Shopping" onclick="filterBy('Shopping')">🛍️ Shopping</div>
+    <div class="chip" data-cat="Utilities" onclick="filterBy('Utilities')">💡 Utilities</div>
+    <div class="chip" data-cat="Other" onclick="filterBy('Other')">📦 Other</div>
+  </div>
+  <div id="txn-list"></div>
+</div>
+
+<!-- GOALS PAGE -->
+<div class="page" id="page-goals">
+  <div class="panel">
+    <h2>Monthly Spending Limits</h2>
+    <div id="goals-list"></div>
+    <div class="goal-form-row">
+      <select id="goal-category">
+        <option value="Housing">🏠 Housing</option>
+        <option value="Food">🍔 Food</option>
+        <option value="Transport">🚗 Transport</option>
+        <option value="Health">💊 Health</option>
+        <option value="Entertainment">🎬 Entertainment</option>
+        <option value="Shopping">🛍️ Shopping</option>
+        <option value="Utilities">💡 Utilities</option>
+        <option value="Other">📦 Other</option>
+      </select>
+      <input type="number" id="goal-amount" placeholder="Limit $" min="1" inputmode="decimal" />
+      <button class="btn-sm" onclick="addGoal()">Set</button>
+    </div>
+  </div>
+</div>
+
+<!-- SAVINGS PAGE -->
+<div class="page" id="page-savings">
+  <div class="savings-card">
+    <div class="sc-label">Total Saved</div>
+    <div class="sc-total" id="savings-total">$0.00</div>
+    <div class="sc-sub" id="savings-sub">across all accounts</div>
+  </div>
+
+  <div class="panel">
+    <h2>My Savings Accounts</h2>
+    <div id="savings-list">
+      <div class="empty-state"><div class="icon">🏦</div>No accounts yet — add one below!</div>
+    </div>
+    <div class="savings-form-grid">
+      <input type="text" id="sav-name" placeholder="Account name" />
+      <input type="number" id="sav-balance" placeholder="Current balance" inputmode="decimal" min="0" step="0.01" />
+      <input type="number" id="sav-goal" placeholder="Goal amount (optional)" inputmode="decimal" min="0" step="0.01" />
+      <input type="text" id="sav-icon" placeholder="Icon e.g. 🏖️ 🚗 🏠" />
+      <button class="btn-savings-add" onclick="addSavingsAccount()">Add Account</button>
+    </div>
+  </div>
+</div>
+
+<!-- DEPOSIT / WITHDRAW MODAL -->
+<div class="modal-overlay" id="txn-modal" onclick="closeModal(event)">
+  <div class="modal-sheet">
+    <h3 id="modal-title">Deposit</h3>
+    <input type="number" id="modal-amount" placeholder="$0.00" inputmode="decimal" min="0" step="0.01" />
+    <div class="modal-btns">
+      <button class="modal-cancel" onclick="closeModal()">Cancel</button>
+      <button class="modal-confirm" id="modal-confirm-btn" onclick="confirmModal()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+  <button class="nav-btn active" id="nav-home" onclick="showPage('home')">
+    <span class="icon">🏠</span>Home
+  </button>
+  <button class="nav-btn" id="nav-add" onclick="showPage('add')">
+    <span class="icon">＋</span>Add
+  </button>
+  <button class="nav-btn" id="nav-txns" onclick="showPage('txns')">
+    <span class="icon">📋</span>History
+  </button>
+  <button class="nav-btn" id="nav-savings" onclick="showPage('savings')">
+    <span class="icon">🏦</span>Savings
+  </button>
+  <button class="nav-btn" id="nav-goals" onclick="showPage('goals')">
+    <span class="icon">🎯</span>Goals
+  </button>
+</nav>
+
+<script>
+  // ── STATE ─────────────────────────────────────────
+  let currentType = 'income';
+  let currentFilter = 'All';
+  let currentMonthOffset = 0;
+
+  const ICONS = {
+    Housing:'🏠', Food:'🍔', Transport:'🚗', Health:'💊',
+    Entertainment:'🎬', Shopping:'🛍️', Utilities:'💡', Income:'💰', Other:'📦'
+  };
+
+  // ── STORAGE ───────────────────────────────────────
+  function getMonthKey() {
+    const d = new Date();
+    d.setMonth(d.getMonth() + currentMonthOffset);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  }
+  function load(k) { try { return JSON.parse(localStorage.getItem(k)) || []; } catch { return []; } }
+  function save(k, v) { localStorage.setItem(k, JSON.stringify(v)); }
+  const getTxns = () => load('txns-' + getMonthKey());
+  const saveTxns = v => save('txns-' + getMonthKey(), v);
+  const getGoals = () => load('goals');
+  const saveGoals = v => save('goals', v);
+
+  const getSavings = () => load('savings-accounts');
+  const saveSavings = v => save('savings-accounts', v);
+
+  // ── NAVIGATION ────────────────────────────────────
+  function showPage(name) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('page-' + name).classList.add('active');
+    document.getElementById('nav-' + name).classList.add('active');
+    render();
+  }
+
+  function changeMonth(dir) {
+    currentMonthOffset += dir;
+    updateMonthLabel();
+    render();
+  }
+
+  function updateMonthLabel() {
+    const d = new Date();
+    d.setMonth(d.getMonth() + currentMonthOffset);
+    document.getElementById('month-label').textContent =
+      d.toLocaleString('default', { month: 'short', year: 'numeric' });
+  }
+
+  // ── TYPE TOGGLE ───────────────────────────────────
+  function setType(type) {
+    currentType = type;
+    document.getElementById('btn-income').className =
+      'type-btn' + (type === 'income' ? ' active-income' : '');
+    document.getElementById('btn-expense').className =
+      'type-btn' + (type === 'expense' ? ' active-expense' : '');
+    document.getElementById('txn-category').value = type === 'income' ? 'Income' : 'Food';
+  }
+
+  // ── ADD TRANSACTION ───────────────────────────────
+  function addTransaction() {
+    const desc = document.getElementById('txn-desc').value.trim();
+    const amount = parseFloat(document.getElementById('txn-amount').value);
+    const category = document.getElementById('txn-category').value;
+    const date = document.getElementById('txn-date').value;
+
+    if (!desc) return alert('Please enter a description.');
+    if (!amount || amount <= 0) return alert('Please enter a valid amount.');
+    if (!date) return alert('Please pick a date.');
+
+    const txns = getTxns();
+    txns.push({ id: Date.now(), type: currentType, desc, amount, category, date });
+    saveTxns(txns);
+
+    document.getElementById('txn-desc').value = '';
+    document.getElementById('txn-amount').value = '';
+
+    // Haptic feedback on iPhone (if available)
+    if (navigator.vibrate) navigator.vibrate(30);
+
+    showPage('home');
+  }
+
+  function deleteTransaction(id) {
+    if (!confirm('Delete this entry?')) return;
+    saveTxns(getTxns().filter(t => t.id !== id));
+    render();
+  }
+
+  // ── SAVINGS ───────────────────────────────────────
+  function addSavingsAccount() {
+    const name = document.getElementById('sav-name').value.trim();
+    const balance = parseFloat(document.getElementById('sav-balance').value) || 0;
+    const goal = parseFloat(document.getElementById('sav-goal').value) || null;
+    const icon = document.getElementById('sav-icon').value.trim() || '🏦';
+    if (!name) return alert('Please enter an account name.');
+    const accounts = getSavings();
+    accounts.push({ id: Date.now(), name, balance, goal, icon });
+    saveSavings(accounts);
+    document.getElementById('sav-name').value = '';
+    document.getElementById('sav-balance').value = '';
+    document.getElementById('sav-goal').value = '';
+    document.getElementById('sav-icon').value = '';
+    render();
+  }
+
+  function deleteSavingsAccount(id) {
+    if (!confirm('Delete this account?')) return;
+    saveSavings(getSavings().filter(a => a.id !== id));
+    render();
+  }
+
+  // Modal state
+  let modalAccountId = null;
+  let modalMode = null;
+
+  function openModal(id, mode) {
+    modalAccountId = id;
+    modalMode = mode;
+    const acct = getSavings().find(a => a.id === id);
+    document.getElementById('modal-title').textContent =
+      mode === 'deposit' ? `Deposit into ${acct.name}` : `Withdraw from ${acct.name}`;
+    document.getElementById('modal-confirm-btn').style.background =
+      mode === 'deposit' ? 'var(--sage)' : 'var(--rose)';
+    document.getElementById('modal-amount').value = '';
+    document.getElementById('txn-modal').classList.add('open');
+    setTimeout(() => document.getElementById('modal-amount').focus(), 100);
+  }
+
+  function closeModal(e) {
+    if (e && e.target !== document.getElementById('txn-modal')) return;
+    document.getElementById('txn-modal').classList.remove('open');
+    modalAccountId = null; modalMode = null;
+  }
+
+  function confirmModal() {
+    const amt = parseFloat(document.getElementById('modal-amount').value);
+    if (!amt || amt <= 0) return alert('Enter a valid amount.');
+    const accounts = getSavings();
+    const acct = accounts.find(a => a.id === modalAccountId);
+    if (!acct) return;
+    if (modalMode === 'deposit') {
+      acct.balance += amt;
+    } else {
+      if (amt > acct.balance) return alert("You can't withdraw more than your balance.");
+      acct.balance -= amt;
+    }
+    saveSavings(accounts);
+    document.getElementById('txn-modal').classList.remove('open');
+    modalAccountId = null; modalMode = null;
+    render();
+  }
+
+  // ── GOALS ─────────────────────────────────────────
+  function addGoal() {
+    const cat = document.getElementById('goal-category').value;
+    const amt = parseFloat(document.getElementById('goal-amount').value);
+    if (!amt || amt <= 0) return alert('Enter a valid limit.');
+    saveGoals([...getGoals().filter(g => g.category !== cat), { category: cat, limit: amt }]);
+    document.getElementById('goal-amount').value = '';
+    render();
+  }
+
+  function deleteGoal(cat) {
+    saveGoals(getGoals().filter(g => g.category !== cat));
+    render();
+  }
+
+  // ── FILTER ────────────────────────────────────────
+  function filterBy(cat) {
+    currentFilter = cat;
+    document.querySelectorAll('.chip').forEach(c =>
+      c.classList.toggle('active', c.dataset.cat === cat));
+    render();
+  }
+
+  // ── FORMAT ────────────────────────────────────────
+  function fmt(n) { return '$' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+
+  // ── RENDER ────────────────────────────────────────
+  function render() {
+    const txns = getTxns();
+    const goals = getGoals();
+
+    const income = txns.filter(t => t.type === 'income').reduce((s,t) => s + t.amount, 0);
+    const expenses = txns.filter(t => t.type === 'expense').reduce((s,t) => s + t.amount, 0);
+    const balance = income - expenses;
+
+    document.getElementById('total-income').textContent = fmt(income);
+    document.getElementById('total-expenses').textContent = fmt(expenses);
+    document.getElementById('total-balance').textContent = fmt(balance);
+    const bc = document.getElementById('balance-card');
+    bc.classList.toggle('positive', balance >= 0);
+    bc.classList.toggle('negative', balance < 0);
+
+    // Insights
+    const catTotals = {};
+    txns.filter(t => t.type === 'expense').forEach(t => {
+      catTotals[t.category] = (catTotals[t.category] || 0) + t.amount;
+    });
+    const sorted = Object.entries(catTotals).sort((a,b) => b[1]-a[1]);
+    const insEl = document.getElementById('insights-list');
+    insEl.innerHTML = sorted.length === 0
+      ? `<div class="empty-state"><div class="icon">📊</div>No expenses yet</div>`
+      : sorted.map(([cat, amt]) =>
+          `<div class="insight-row">
+            <span class="insight-cat">${ICONS[cat]||'📦'} ${cat}</span>
+            <span class="insight-amt">${fmt(amt)}</span>
+          </div>`).join('');
+
+    // Goals on home
+    const goalsHomeEl = document.getElementById('goals-home');
+    if (goals.length === 0) {
+      goalsHomeEl.innerHTML = '';
+    } else {
+      goalsHomeEl.innerHTML = goals.map(g => {
+        const spent = txns.filter(t => t.type === 'expense' && t.category === g.category)
+                          .reduce((s,t) => s + t.amount, 0);
+        const pct = Math.min((spent / g.limit) * 100, 100);
+        const cls = pct >= 100 ? 'over' : pct >= 80 ? 'warning' : 'safe';
+        return `<div class="goal-item">
+          <div class="goal-header">
+            <span class="goal-name">${ICONS[g.category]||'📦'} ${g.category}</span>
+            <span class="goal-amounts">${fmt(spent)} / ${fmt(g.limit)}</span>
+          </div>
+          <div class="goal-bar-bg"><div class="goal-bar-fill ${cls}" style="width:${pct}%"></div></div>
+        </div>`;
+      }).join('');
+    }
+
+    // Goals page
+    const goalsListEl = document.getElementById('goals-list');
+    goalsListEl.innerHTML = goals.length === 0
+      ? `<div class="empty-state"><div class="icon">🎯</div>No limits set yet</div>`
+      : goals.map(g => {
+          const spent = txns.filter(t => t.type === 'expense' && t.category === g.category)
+                            .reduce((s,t) => s + t.amount, 0);
+          const pct = Math.min((spent / g.limit) * 100, 100);
+          const cls = pct >= 100 ? 'over' : pct >= 80 ? 'warning' : 'safe';
+          return `<div class="goal-item">
+            <div class="goal-header">
+              <span class="goal-name">${ICONS[g.category]||'📦'} ${g.category}</span>
+              <div style="display:flex;align-items:center;gap:8px">
+                <span class="goal-amounts">${fmt(spent)} / ${fmt(g.limit)}</span>
+                <button onclick="deleteGoal('${g.category}')" style="background:none;border:none;cursor:pointer;color:var(--ink-faint);font-size:0.9rem;">✕</button>
+              </div>
+            </div>
+            <div class="goal-bar-bg"><div class="goal-bar-fill ${cls}" style="width:${pct}%"></div></div>
+          </div>`;
+        }).join('');
+
+    // Savings
+    const accounts = getSavings();
+    const savingsTotal = accounts.reduce((s, a) => s + a.balance, 0);
+    document.getElementById('savings-total').textContent = fmt(savingsTotal);
+    document.getElementById('savings-sub').textContent =
+      accounts.length === 0 ? 'no accounts yet'
+      : accounts.length === 1 ? 'in 1 account'
+      : `across ${accounts.length} accounts`;
+
+    const savListEl = document.getElementById('savings-list');
+    savListEl.innerHTML = accounts.length === 0
+      ? `<div class="empty-state"><div class="icon">🏦</div>No accounts yet — add one below!</div>`
+      : accounts.map(a => {
+          const pct = a.goal ? Math.min((a.balance / a.goal) * 100, 100) : null;
+          const reached = pct !== null && pct >= 100;
+          return `<div class="savings-account">
+            <div class="savings-account-icon">${a.icon}</div>
+            <div class="savings-account-info">
+              <div class="savings-account-name">${a.name}</div>
+              ${a.goal ? `
+                <div class="savings-progress-wrap">
+                  <div class="savings-account-goal">Goal: ${fmt(a.goal)} · ${reached ? '🎉 Reached!' : Math.round(pct)+'%'}</div>
+                  <div class="savings-progress-bar">
+                    <div class="savings-progress-fill${reached?' reached':''}" style="width:${pct}%"></div>
+                  </div>
+                </div>` : ''}
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+              <div class="savings-account-bal">${fmt(a.balance)}</div>
+              <div class="savings-account-actions">
+                <button class="btn-deposit" onclick="openModal(${a.id},'deposit')">+ Add</button>
+                <button class="btn-withdraw" onclick="openModal(${a.id},'withdraw')">− Take</button>
+              </div>
+            </div>
+            <button onclick="deleteSavingsAccount(${a.id})" style="background:none;border:none;cursor:pointer;color:var(--ink-faint);font-size:0.85rem;padding:4px;align-self:flex-start;">✕</button>
+          </div>`;
+        }).join('');
+
+    // Transaction list
+    const filtered = currentFilter === 'All' ? txns : txns.filter(t => t.category === currentFilter);
+    const sortedTxns = [...filtered].sort((a,b) => b.date.localeCompare(a.date) || b.id - a.id);
+    const listEl = document.getElementById('txn-list');
+    listEl.innerHTML = sortedTxns.length === 0
+      ? `<div class="empty-state"><div class="icon">📋</div>No transactions this month</div>`
+      : sortedTxns.map(t => {
+          const dateStr = new Date(t.date + 'T12:00').toLocaleDateString('default', {month:'short',day:'numeric'});
+          const sign = t.type === 'income' ? '+' : '−';
+          return `<div class="txn-item">
+            <div class="txn-icon ${t.type}">${ICONS[t.category]||'📦'}</div>
+            <div class="txn-info">
+              <div class="txn-desc">${t.desc}</div>
+              <div class="txn-meta">${t.category} · ${dateStr}</div>
+            </div>
+            <div class="txn-amount ${t.type}">${sign}${fmt(t.amount)}</div>
+            <button class="txn-delete" onclick="deleteTransaction(${t.id})">✕</button>
+          </div>`;
+        }).join('');
+  }
+
+  // ── INSTALL BANNER ────────────────────────────────
+  function showInstallHelp() {
+    alert('To install on your iPhone:\n\n1. Tap the Share button (box with arrow) at the bottom of Safari\n2. Scroll down and tap "Add to Home Screen"\n3. Tap "Add" in the top right\n\nThe app icon will appear on your home screen!');
+  }
+  function dismissBanner() {
+    document.getElementById('install-banner').style.display = 'none';
+    localStorage.setItem('banner-dismissed', '1');
+  }
+
+  // Show banner if not standalone and not dismissed
+  const isStandalone = window.navigator.standalone === true;
+  const dismissed = localStorage.getItem('banner-dismissed');
+  if (!isStandalone && !dismissed) {
+    document.getElementById('install-banner').style.display = 'flex';
+  }
+
+  // ── SERVICE WORKER ────────────────────────────────
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+
+  // ── INIT ──────────────────────────────────────────
+  document.getElementById('txn-date').value = new Date().toISOString().split('T')[0];
+  updateMonthLabel();
+  setType('income');
+  render();
+</script>
+</body>
+</html>
